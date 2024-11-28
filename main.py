@@ -1,7 +1,7 @@
 from typing import Annotated
 
-
-from fastapi import Body, Depends, FastAPI, HTTPException, Query
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, File, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
@@ -72,12 +72,6 @@ class User(BaseModel):
 
 
 # Endpoints
-
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: str | None = None):
@@ -155,3 +149,53 @@ def update_hero(hero_id: int, hero: HeroUpdate, session: SessionDep):
     session.commit()
     session.refresh(hero_db)
     return hero_db
+
+
+@app.post("/files/")
+async def create_files(
+    files: Annotated[list[bytes], File(description="Multiple files as bytes")],
+):
+    return {"file_sizes": [len(file) for file in files]}
+
+
+@app.post("/uploadfiles/")
+async def create_upload_files(
+    files: Annotated[
+        list[UploadFile], File(description="Multiple files as UploadFile")
+    ],
+):
+    return {"filenames": [file.filename for file in files]}
+
+
+@app.get("/")
+async def main():
+    content = """
+<body>
+<form action="/files/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+<form action="/uploadfiles/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+</body>
+    """
+    return HTMLResponse(content=content)
+
+
+async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):
+    return {"q": q, "skip": skip, "limit": limit}
+
+
+CommonsDep = Annotated[dict, Depends(common_parameters)]
+
+
+@app.get("/dependency-injection-items/")
+async def read_items(commons: CommonsDep):
+    return commons
+
+
+@app.get("/dependency-injection-users/")
+async def read_users(commons: CommonsDep):
+    return commons
