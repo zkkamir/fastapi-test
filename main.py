@@ -1,7 +1,8 @@
 from typing import Annotated
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Query, File, UploadFile
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, File, UploadFile
 from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
@@ -24,7 +25,21 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-app = FastAPI()
+
+async def verify_token(x_token: Annotated[str, Header()] = "fake-super-secret-token"):
+    if x_token != "fake-super-secret-token":
+        raise HTTPException(status_code=400, detail="X-Token header invalid")
+
+
+async def verify_key(x_key: Annotated[str, Header()] = "fake-super-secret-key"):
+    if x_key != "fake-super-secret-key":
+        raise HTTPException(status_code=400, detail="X-Key header invalid")
+    return x_key
+
+
+app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)])
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @app.on_event("startup")
@@ -68,7 +83,9 @@ class Item(BaseModel):
 
 class User(BaseModel):
     username: str
+    email: str | None = None
     full_name: str | None = None
+    disabled: bool | None = None
 
 
 # Endpoints
@@ -184,18 +201,34 @@ async def main():
     return HTMLResponse(content=content)
 
 
-async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):
-    return {"q": q, "skip": skip, "limit": limit}
-
-
-CommonsDep = Annotated[dict, Depends(common_parameters)]
+class CommonQueryParams:
+    def __init__(self, q: str | None = None, skip: int = 0, limit: int = 100):
+        self.q = q
+        self.skip = skip
+        self.limit = limit
 
 
 @app.get("/dependency-injection-items/")
-async def read_items(commons: CommonsDep):
+async def read_items(commons: Annotated[CommonQueryParams, Depends()]):
     return commons
 
 
-@app.get("/dependency-injection-users/")
-async def read_users(commons: CommonsDep):
-    return commons
+@app.get("/oath2-items/")
+async def Oath2_read_items(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}
+
+
+def fake_decode_token(token):
+    return User(
+        username=token + "fakedecoded", email="john@example.com", full_name="John Doe"
+    )
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    user = fake_decode_token(token)
+    return user
+
+
+@app.get("/users/me")
+async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
+    return current_user
