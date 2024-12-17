@@ -2,11 +2,20 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, Header, HTTPException, FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel
+
+
+fake_secret_token = "coneofsilence"
+
+fake_db = {
+    "foo": {"id": "foo", "title": "Foo", "description": "There goes my hero"},
+    "bar": {"id": "bar", "title": "Bar", "description": "The bartenders"},
+}
 
 SECRET_KEY = "(*_if2!x2wy=bcqvsgc%5ii*!$h#s-6g#oq1*b!816ws@rq!%&"
 ALGORITHM = "HS256"
@@ -44,11 +53,32 @@ class UserInDB(User):
     hashed_password: str
 
 
+class Item(BaseModel):
+    id: str
+    title: str
+    description: str | None = None
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
+
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def verify_password(plain_password, hashed_password):
@@ -143,3 +173,27 @@ async def read_own_items(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
+
+
+@app.get("/")
+async def read_main():
+    return {"msg": "Hello World"}
+
+
+@app.get("/items/{item_id}", response_model=Item)
+async def read_main_items(item_id: str, x_token: Annotated[str, Header()]):
+    if x_token != fake_secret_token:
+        raise HTTPException(status_code=400, detail="Invalid X-Token header")
+    if item_id not in fake_db:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return fake_db[item_id]
+
+
+@app.post("/items/", response_model=Item)
+async def create_item(item: Item, x_token: Annotated[str, Header()]):
+    if x_token != fake_secret_token:
+        raise HTTPException(status_code=400, detail="Invalid X-Token header")
+    if item.id in fake_db:
+        raise HTTPException(status_code=409, detail="Item already exists")
+    fake_db[item.id] = item
+    return item
