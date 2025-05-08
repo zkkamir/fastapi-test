@@ -46,7 +46,7 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 
 
-def authenticate_user(username: str, password: str, db):
+def authenticate_user(username: str, password: str, db) -> Users | bool:
     user = db.query(Users).filter(Users.username == username).first()
     if not user:
         return False
