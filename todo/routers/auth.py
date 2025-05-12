@@ -8,8 +8,8 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from models import Users
-from database import SessionLocal
+from todo.models import Users
+from todo.database import SessionLocal
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])

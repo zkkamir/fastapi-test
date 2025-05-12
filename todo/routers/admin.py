@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.orm import Session
 
 from .auth import get_current_user
-from database import SessionLocal
-from models import Todos
+from todo.database import SessionLocal
+from todo.models import Todos
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
