@@ -9,7 +9,7 @@ from todo.database import SessionLocal
 from todo.models import Todos
 
 
-router = APIRouter()
+router = APIRouter(prefix="/todos", tags=["todos"])
 
 
 def get_db():

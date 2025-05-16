@@ -70,4 +70,4 @@ async def test_get_current_user_missing_payload():
         await get_current_user(token)
 
     assert ex.value.status_code == 401
-    assert ex.value.detail == 'Could not validate user.'
+    assert ex.value.detail == "Could not validate user."

@@ -16,7 +16,7 @@ app.dependency_overrides[get_current_user] = override_get_current_user
 
 
 def test_read_all_authenticated(test_todo):
-    res = client.get("/")
+    res = client.get("/todos")
     assert res.status_code == status.HTTP_200_OK
     assert res.json() == [
         {
@@ -31,13 +31,13 @@ def test_read_all_authenticated(test_todo):
 
 
 def test_read_one_authenticated(test_todo):
-    res = client.get(f"/todo/{test_todo.id}")
+    res = client.get(f"todos/todo/{test_todo.id}")
     assert res.status_code == status.HTTP_200_OK
     assert res.json()["title"] == test_todo.title
 
 
 def test_read_one_authenticated_not_found():
-    res = client.get("/todo/999")
+    res = client.get("todos/todo/999")
     assert res.status_code == status.HTTP_404_NOT_FOUND
     assert res.json() == {"detail": "Todo not found."}
 
@@ -49,7 +49,7 @@ def test_create_todo():
         "priority": 2,
         "complete": True,
     }
-    res = client.post("/todo", json=data)
+    res = client.post("todos/todo", json=data)
     assert res.status_code == status.HTTP_201_CREATED
 
     db = TestingSessionLocal()
@@ -64,7 +64,7 @@ def test_update_todo(test_todo):
         "priority": 1,
         "complete": False,
     }
-    res = client.put("/todo/1", json=data)
+    res = client.put("todos/todo/1", json=data)
     assert res.status_code == status.HTTP_204_NO_CONTENT
     db = TestingSessionLocal()
     instance = db.query(Todos).filter(Todos.title == data["title"]).first()
@@ -78,12 +78,12 @@ def test_update_todo_not_found(test_todo):
         "priority": 1,
         "complete": False,
     }
-    res = client.put("/todo/999", json=data)
+    res = client.put("todos/todo/999", json=data)
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_delete_todo(test_todo):
-    res = client.delete(f"/todo/{test_todo.id}")
+    res = client.delete(f"todos/todo/{test_todo.id}")
     assert res.status_code == 204
     db = TestingSessionLocal()
     instance = db.query(Todos).filter(Todos.title == test_todo.title).first()
@@ -91,5 +91,5 @@ def test_delete_todo(test_todo):
 
 
 def test_delete_todo_not_found(test_todo):
-    res = client.delete("/todo/999")
+    res = client.delete("todos/todo/999")
     assert res.status_code == 404
